@@ -6,11 +6,11 @@
 
 #define MY_UUID { 0x42, 0x35, 0x46, 0xE7, 0x54, 0x18, 0x4F, 0x47, 0x96, 0x63, 0xF0, 0xDB, 0x98, 0x7C, 0x04, 0x40 }
 PBL_APP_INFO(MY_UUID,
-             "Filmplakat", "lastfuture",
-             2, 1, /* App version */
+             "Filmplakat French", "lastfuture, pitoo",
+             2, 2, /* App version */
              RESOURCE_ID_IMAGE_MENU_ICON,
 #if DEBUG
-             APP_INFO_STANDARD_APP
+             APP_INFO_WATCH_FACE // APP_INFO_STANDARD_APP
 #else
 			 APP_INFO_WATCH_FACE
 #endif
@@ -43,17 +43,17 @@ PblTm t;
 #include "string.h"
 static const char* MONTHS[] = {
     "Janvier",
-    "Fevrier",
+    "Février",
     "Mars",
     "Avril",
     "Mai",
     "Juin",
     "Juillet",
-    "Aout",
+    "Août",
     "Septembre",
     "Octobre",
     "Novembre",
-    "Decembre",
+    "Décembre",
 };
 static const char* WEEKDAYS[] = {
     "Di",
@@ -90,20 +90,20 @@ static const char* TEENS_DOTLESS[] = { // ı
     "minuit",
     "une",
     "deux",
-    "trois",
+    "troıs",
     "quatre",
-    "cinq",
-    "six",
+    "cınq",
+    "sıx",
     "sept",
     "huit",
     "neuf",
     "dix",
     "onze",
     "douze",
-    "treize",
+    "treıze",
     "quatorze",
-    "quinze",
-    "seize",
+    "quınze",
+    "seıze",
     "dix-sept",
     "dix-huit",
     "dix-neuf",
@@ -116,11 +116,11 @@ static const char* TENS[] = {
     "soixante",
 };
 static const char* TENS_DOTLESS[] = { // ı
-    "vingt",
+    "vıngt",
     "trente",
     "quarante",
-    "cinquante",
-    "soixante",
+    "cınquante",
+    "soıxante",
 };
 static const bool TEENS_ASC[] = {
     false,
@@ -160,13 +160,13 @@ static const char* STR_S = "s";
 
 static const char* STR_HOUR = "heure";
 
-static const int UHR_ASC = 33; // 28
-static const int MINUTES_ASC = 26; // 25
-static const int MINUTES2_ASC = 28; // 28
-static const int DATE_ASC = 40; // 36
+static const int UHR_ASC = 28; // 28 // 33
+static const int MINUTES_ASC = 25; // 25 // 26
+static const int MINUTES2_ASC = 28; // 28 // 28
+static const int DATE_ASC = 36; // 36 // 40
 
-static const int MINUTES_X = 0; // 5
-static const int MINUTES2_X = 0; // 5
+static const int MINUTES_X = 5; // 5 // 0
+static const int MINUTES2_X = 5; // 5 // 0
 
 void setup_text_layer(TextLayer* row, PropertyAnimation *this_anim, int x, int y, int oldx, int oldy, GFont font, int magic, bool delayed, bool black){
     int rectheight = 50;
@@ -542,10 +542,10 @@ void handle_init(AppContextRef ctx) {
     window_set_background_color(&window, GColorBlack);
     resource_init_current_app(&APP_RESOURCES);
 
-    fontHour = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_BOLDITALIC_35));
-    fontUhr = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_LIGHTITALIC_30));
-    fontMinutes = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_ITALIC_33));
-    fontDate = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_ITALIC_13));
+    fontHour = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_BI_35));
+    fontUhr = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_LI_30));
+    fontMinutes = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_I_33));
+    fontDate = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_I_13));
 
     memset(row_1_buffer,0,20);
     memset(row_2_buffer,0,20);

@@ -1,34 +1,38 @@
 {
- "friendlyVersion": "0.1",
- "versionDefName": "APP_RESOURCES",
-
- "media": [
-     {"type": "png",
-      "defName": "IMAGE_MENU_ICON",
-      "file": "images/menu_icon_filmplakat.png"
-     },
-     {"type":"font",
-      "characterRegex": "[a-z]",
-      "trackingAdjust": -1,
-      "defName":"FONT_ROBOTO_BOLDITALIC_35",
-      "file":"fonts/roboto/Roboto-BoldItalic_35.ttf"
-     },
-     {"type":"font",
-      "characterRegex": "[a-z]",
-      "trackingAdjust": -2,
-      "defName":"FONT_ROBOTO_ITALIC_33",
-      "file":"fonts/roboto/Roboto-Italic_33.ttf"
-     },
-     {"type":"font",
-      "characterRegex": "[heurs]",
-      "trackingAdjust": -2,
-      "defName":"FONT_ROBOTO_LIGHTITALIC_30",
-      "file":"fonts/roboto/Roboto-LightItalic_30.ttf"
-     },
-     {"type":"font",
-      "characterRegex": "[0-9 .LMJVSDFAONuaeinvrsltopmbc]",
-      "defName":"FONT_ROBOTO_ITALIC_13",
-      "file":"fonts/roboto/Roboto-Italic_13.ttf"
-     }
-  ]
+    "media": [
+        {
+            "trackingAdjust": -2,
+            "characterRegex": ".",
+            "defName": "ROBOTO_BI_35",
+            "type": "font",
+            "file": "fonts/Roboto-BoldItalic.ttf"
+        },
+        {
+            "characterRegex": ".",
+            "defName": "ROBOTO_I_13",
+            "type": "font",
+            "file": "fonts/Roboto-Italic.ttf"
+        },
+        {
+            "trackingAdjust": -2,
+            "characterRegex": ".",
+            "defName": "ROBOTO_I_33",
+            "type": "font",
+            "file": "fonts/Roboto-Italic.ttf"
+        },
+        {
+            "trackingAdjust": -2,
+            "characterRegex": "[heurs]",
+            "defName": "ROBOTO_LI_30",
+            "type": "font",
+            "file": "fonts/Roboto-LightItalic.ttf"
+        },
+        {
+            "defName": "IMAGE_MENU_ICON",
+            "type": "png",
+            "file": "images/menu_icon_filmplakat.png"
+        }
+    ],
+    "friendlyVersion": "VERSION",
+    "versionDefName": "APP_RESOURCES"
 }
