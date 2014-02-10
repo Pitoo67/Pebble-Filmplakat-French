@@ -38,6 +38,12 @@
         "file": "fonts/Roboto-LightItalic.ttf",
         "type": "font"
       },
+       {
+        "type": "font",
+        "characterRegex": ".",
+        "name": "ICONS_16",
+        "file": "fonts/icons.ttf"
+      },
       {
         "menuIcon": true,
         "type": "png",

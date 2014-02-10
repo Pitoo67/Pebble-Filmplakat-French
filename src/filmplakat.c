@@ -4,23 +4,16 @@
 #define DEBUG 0
 
 void itoa(int num, char* buffer) {
-    const char digits[11] = "0123456789";
-    if(num > 9) {
-        buffer[0] = digits[num / 10];
-        buffer[1] = digits[num % 10];
-    } else {
-        buffer[0] = digits[num % 10];
-        buffer[1] = '\0';
-    }
+	snprintf(buffer, sizeof(buffer), "%i", num);
 }
 
 static Window* window;
-static TextLayer* row_1, * row_1b, * row_2, * row_2b, * row_3, * row_3b, * row_4, * row_4b, * row_5, * row_5b;
+static TextLayer* row_1, * row_1b, * row_2, * row_2b, * row_3, * row_3b, * row_4, * row_4b, * row_5, * row_5b, *battery;
 static PropertyAnimation* anim_1, * anim_1b, * anim_2, * anim_2b, * anim_3, * anim_3b, * anim_4, * anim_4b, * anim_5, * anim_5b;
 static char row_1_buffer[20], row_2_buffer[20], row_3_buffer[20], row_4_buffer[20], row_5_buffer[20], row_1_oldbuf[20], row_2_oldbuf[20], row_3_oldbuf[20], row_4_oldbuf[20], row_5_oldbuf[20];
 static int row_1_x, row_2_x, row_3_x, row_4_x, row_5_x, row_1_y, row_2_y, row_3_y, row_4_y, row_5_y, row_1_oldx, row_2_oldx, row_3_oldx, row_4_oldx, row_5_oldx, row_1_oldy, row_2_oldy, row_3_oldy, row_4_oldy, row_5_oldy;
 static bool row_3_asc, row_4_asc, has_row_2, has_row_3, has_row_4, firstblood, tenplusone;
-static GFont* fontHour,* fontUhr,* fontMinutes, *fontDate;
+static GFont* fontHour,* fontUhr,* fontMinutes, *fontDate, *fontIcons;
 
 
 
@@ -526,6 +519,22 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 
 }
 
+void battery_handler(BatteryChargeState charge) {
+	if(charge.is_charging) {
+		text_layer_set_text(battery,"\ue004");
+		return;
+	}
+	
+	if(charge.charge_percent >= 60) {
+		text_layer_set_text(battery,"\ue003");
+	}
+	else if (charge.charge_percent < 60 && charge.charge_percent > 30) {
+		text_layer_set_text(battery,"\ue002");
+	} else {
+		text_layer_set_text(battery,"\ue001");
+	}
+	
+}
 void handle_init() {
 
     firstblood = true;
@@ -538,6 +547,7 @@ void handle_init() {
     fontUhr = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_LI_30));
     fontMinutes = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_I_33));
     fontDate = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_I_13));
+    fontIcons = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ICONS_16));
 
     memset(row_1_buffer,0,20);
     memset(row_2_buffer,0,20);
@@ -558,6 +568,18 @@ void handle_init() {
     
     row_1 = text_layer_create(frame);
     row_1b = text_layer_create(frame);
+    
+	//battery
+	battery = text_layer_create(GRect(0, 0, 144, 18));
+	text_layer_set_text_color(battery, GColorWhite);
+	text_layer_set_background_color(battery, GColorClear);
+	text_layer_set_font(battery, fontIcons);
+	text_layer_set_text_alignment(battery, GTextAlignmentRight);
+	battery_handler(battery_state_service_peek());
+	
+	layer_add_child(window_get_root_layer(window),text_layer_get_layer(battery));
+	
+	battery_state_service_subscribe(battery_handler);
 
 #if DEBUG
 	tick_timer_service_subscribe(SECOND_UNIT, handle_minute_tick);
@@ -577,11 +599,13 @@ void handle_deinit() {
 	text_layer_destroy(row_5b);
 	text_layer_destroy(row_1);
 	text_layer_destroy(row_1b);
+	text_layer_destroy(battery);
 	
 	fonts_unload_custom_font(fontHour);
 	fonts_unload_custom_font(fontUhr);
 	fonts_unload_custom_font(fontMinutes);
 	fonts_unload_custom_font(fontDate);
+	fonts_unload_custom_font(fontIcons);
 	
 	window_destroy(window);
 
