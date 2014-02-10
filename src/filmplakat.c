@@ -1,41 +1,20 @@
-#include "pebble_os.h"
-#include "pebble_app.h"
+#include "pebble.h"
 #include "pebble_fonts.h"
 
 #define DEBUG 0
 
-#define MY_UUID { 0x42, 0x35, 0x46, 0xE7, 0x54, 0x18, 0x4F, 0x47, 0x96, 0x63, 0xF0, 0xDB, 0x98, 0x7C, 0x04, 0x40 }
-PBL_APP_INFO(MY_UUID,
-             "Filmplakat French", "lastfuture, pitoo",
-             2, 2, /* App version */
-             RESOURCE_ID_IMAGE_MENU_ICON,
-#if DEBUG
-             APP_INFO_WATCH_FACE // APP_INFO_STANDARD_APP
-#else
-			 APP_INFO_WATCH_FACE
-#endif
-);
-
 void itoa(int num, char* buffer) {
-    const char digits[11] = "0123456789";
-    if(num > 9) {
-        buffer[0] = digits[num / 10];
-        buffer[1] = digits[num % 10];
-    } else {
-        buffer[0] = digits[num % 10];
-        buffer[1] = '\0';
-    }
+	snprintf(buffer, sizeof(buffer), "%i", num);
 }
 
-Window window;
-TextLayer row_1, row_1b, row_2, row_2b, row_3, row_3b, row_4, row_4b, row_5, row_5b;
-PropertyAnimation anim_1, anim_1b, anim_2, anim_2b, anim_3, anim_3b, anim_4, anim_4b, anim_5, anim_5b;
+static Window* window;
+static TextLayer* row_1, * row_1b, * row_2, * row_2b, * row_3, * row_3b, * row_4, * row_4b, * row_5, * row_5b, *battery;
+static PropertyAnimation* anim_1, * anim_1b, * anim_2, * anim_2b, * anim_3, * anim_3b, * anim_4, * anim_4b, * anim_5, * anim_5b;
 static char row_1_buffer[20], row_2_buffer[20], row_3_buffer[20], row_4_buffer[20], row_5_buffer[20], row_1_oldbuf[20], row_2_oldbuf[20], row_3_oldbuf[20], row_4_oldbuf[20], row_5_oldbuf[20];
 static int row_1_x, row_2_x, row_3_x, row_4_x, row_5_x, row_1_y, row_2_y, row_3_y, row_4_y, row_5_y, row_1_oldx, row_2_oldx, row_3_oldx, row_4_oldx, row_5_oldx, row_1_oldy, row_2_oldy, row_3_oldy, row_4_oldy, row_5_oldy;
 static bool row_3_asc, row_4_asc, has_row_2, has_row_3, has_row_4, firstblood, tenplusone;
-GFont fontHour, fontUhr, fontMinutes, fontDate;
+static GFont* fontHour,* fontUhr,* fontMinutes, *fontDate, *fontIcons;
 
-PblTm t;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -88,7 +67,7 @@ static const char* TEENS[] = {
 };
 static const char* TEENS_DOTLESS[] = { // ı
     "minuit",
-    "une",
+    "un",
     "deux",
     "troıs",
     "quatre",
@@ -168,6 +147,11 @@ static const int DATE_ASC = 36; // 36 // 40
 static const int MINUTES_X = 5; // 5 // 0
 static const int MINUTES2_X = 5; // 5 // 0
 
+void animation_stopped(struct Animation *animation, bool finished, void *context) {
+	animation_destroy(animation);
+	property_animation_destroy((PropertyAnimation*) context);
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Animation Destroyed : %i", finished);
+}
 void setup_text_layer(TextLayer* row, PropertyAnimation *this_anim, int x, int y, int oldx, int oldy, GFont font, int magic, bool delayed, bool black){
     int rectheight = 50;
     text_layer_set_text_color(row, GColorWhite);
@@ -177,7 +161,7 @@ void setup_text_layer(TextLayer* row, PropertyAnimation *this_anim, int x, int y
     } else {
         text_layer_set_background_color(row, GColorClear);
     }
-    layer_add_child(&window.layer, &row->layer);
+    layer_add_child(window_get_root_layer(window), text_layer_get_layer(row));
     text_layer_set_font(row,font);
 
     int speed = 1000;
@@ -212,9 +196,12 @@ void setup_text_layer(TextLayer* row, PropertyAnimation *this_anim, int x, int y
     }
 
     if (magic != 3) {
-        layer_set_frame(&row->layer, start_rect);
-        property_animation_init_layer_frame(this_anim, &row->layer, NULL, &target_rect);
-
+        layer_set_frame(text_layer_get_layer(row), start_rect);
+        
+        this_anim =  property_animation_create_layer_frame(text_layer_get_layer(row),NULL,&target_rect);
+        AnimationHandlers handlers = {.stopped = animation_stopped};
+		animation_set_handlers(&this_anim->animation, handlers, this_anim);
+		
         animation_set_duration(&this_anim->animation, speed);
         animation_set_curve(&this_anim->animation, AnimationCurveEaseInOut);
         if (delayed) {
@@ -278,7 +265,7 @@ void GetTime(int hours, int minutes, int day, int month, int weekday){
     strcat(row_5_buffer, MONTHS[month]);
 }
 
-void update_time(PblTm* t){
+void update_time(struct tm *tick_time){
 
     memset(row_1_oldbuf,0,20);
     memset(row_2_oldbuf,0,20);
@@ -304,15 +291,15 @@ void update_time(PblTm* t){
 //    strcat(row_1_buffer, STR_SPACE); // workaround for weird "z" bug
 
 #if DEBUG
-    static int dm = 52;
+    static int dm = 50;
     static int dh = 1;
     //GetTime(7,57,2,8,0); // longest strings?
-    GetTime(dh,dm,t->tm_mday,t->tm_mon,t->tm_wday);
+    GetTime(dh,dm,tick_time->tm_mday,tick_time->tm_mon,tick_time->tm_wday);
     dm++;
     if (dm == 60) { dm = 0; dh++; }
     if (dh == 60) { dh = 0; }
 #else
-    GetTime(t->tm_hour,t->tm_min,t->tm_mday,t->tm_mon,t->tm_wday);
+    GetTime(tick_time->tm_hour,tick_time->tm_min,tick_time->tm_mday,tick_time->tm_mon,tick_time->tm_wday);
 #endif
 
     int spacing = 0;
@@ -404,27 +391,27 @@ void update_time(PblTm* t){
     if (strcmp(row_1_oldbuf,row_1_buffer)) { haschanged = true; } else { haschanged = false; }
 
     if (haschanged && firstblood != true) {
-        setup_text_layer(&row_1,&anim_1,-144,row_1_oldy,row_1_oldx,row_1_oldy,fontHour,0,false,true);
-        text_layer_set_text(&row_1,row_1_oldbuf);
-        setup_text_layer(&row_1b,&anim_1b,row_1_x,row_1_y,144,row_1_y,fontHour,magic,true,true);
-        text_layer_set_text(&row_1b,row_1_buffer);
+        setup_text_layer(row_1,anim_1,-144,row_1_oldy,row_1_oldx,row_1_oldy,fontHour,0,false,true);
+        text_layer_set_text(row_1,row_1_oldbuf);
+        setup_text_layer(row_1b,anim_1b,row_1_x,row_1_y,144,row_1_y,fontHour,magic,true,true);
+        text_layer_set_text(row_1b,row_1_buffer);
     } else {
-        setup_text_layer(&row_1,&anim_1,row_1_x,row_1_y,row_1_oldx,row_1_oldy,fontHour,0,true,true);
-        text_layer_set_text(&row_1,row_1_buffer);
-        text_layer_set_text(&row_1b,STR_SPACE);
+        setup_text_layer(row_1,anim_1,row_1_x,row_1_y,row_1_oldx,row_1_oldy,fontHour,0,true,true);
+        text_layer_set_text(row_1,row_1_buffer);
+        text_layer_set_text(row_1b,STR_SPACE);
     }
 
     if (strcmp(row_2_oldbuf,row_2_buffer)) { haschanged = true; } else { haschanged = false; }
 
     if (haschanged && firstblood != true) {
-        setup_text_layer(&row_2,&anim_2,-144,row_2_oldy,row_2_oldx,row_2_oldy,fontUhr,0,false,false);
-        text_layer_set_text(&row_2,row_2_oldbuf);
-        setup_text_layer(&row_2b,&anim_2b,row_2_x,row_2_y,144,row_2_y,fontUhr,magic,true,false);
-        text_layer_set_text(&row_2b,row_2_buffer);
+        setup_text_layer(row_2,anim_2,-144,row_2_oldy,row_2_oldx,row_2_oldy,fontUhr,0,false,false);
+        text_layer_set_text(row_2,row_2_oldbuf);
+        setup_text_layer(row_2b,anim_2b,row_2_x,row_2_y,144,row_2_y,fontUhr,magic,true,false);
+        text_layer_set_text(row_2b,row_2_buffer);
     } else {
-        setup_text_layer(&row_2,&anim_2,row_2_x,row_2_y,row_2_oldx,row_2_oldy,fontUhr,0,true,false);
-        text_layer_set_text(&row_2,row_2_buffer);
-        text_layer_set_text(&row_2b,STR_SPACE);
+        setup_text_layer(row_2,anim_2,row_2_x,row_2_y,row_2_oldx,row_2_oldy,fontUhr,0,true,false);
+        text_layer_set_text(row_2,row_2_buffer);
+        text_layer_set_text(row_2b,STR_SPACE);
     }
 
     if (strcmp(row_3_oldbuf,row_3_buffer)) { haschanged = true; } else { haschanged = false; }
@@ -441,28 +428,28 @@ void update_time(PblTm* t){
     if (magic == 0) {
         if (haschanged) {
             if (tenplusone) {
-                setup_text_layer(&row_3,&anim_3,row_3_x,row_3_y,144,row_3_y,fontMinutes,magic,true,false);
-                text_layer_set_text(&row_3,row_3_buffer);
-                text_layer_set_text(&row_3b,STR_SPACE);
+                setup_text_layer(row_3,anim_3,row_3_x,row_3_y,144,row_3_y,fontMinutes,magic,true,false);
+                text_layer_set_text(row_3,row_3_buffer);
+                text_layer_set_text(row_3b,STR_SPACE);
             } else {
-                setup_text_layer(&row_3,&anim_3,-144,row_3_oldy,row_3_oldx,row_3_oldy,fontMinutes,magic,false,false);
-                text_layer_set_text(&row_3,row_3_oldbuf);
-                setup_text_layer(&row_3b,&anim_3b,row_3_x,row_3_y,144,row_3_y,fontMinutes,magic,true,false);
-                text_layer_set_text(&row_3b,row_3_buffer);
+                setup_text_layer(row_3,anim_3,-144,row_3_oldy,row_3_oldx,row_3_oldy,fontMinutes,magic,false,false);
+                text_layer_set_text(row_3,row_3_oldbuf);
+                setup_text_layer(row_3b,anim_3b,row_3_x,row_3_y,144,row_3_y,fontMinutes,magic,true,false);
+                text_layer_set_text(row_3b,row_3_buffer);
             }
         } else {
-            setup_text_layer(&row_3,&anim_3,row_3_x,row_3_y,row_3_oldx,row_3_oldy,fontMinutes,magic,false,false);
-            text_layer_set_text(&row_3,row_3_buffer);
-            text_layer_set_text(&row_3b,STR_SPACE);
+            setup_text_layer(row_3,anim_3,row_3_x,row_3_y,row_3_oldx,row_3_oldy,fontMinutes,magic,false,false);
+            text_layer_set_text(row_3,row_3_buffer);
+            text_layer_set_text(row_3b,STR_SPACE);
         }
     } else {
-        setup_text_layer(&row_3,&anim_3,row_3_x,row_3_y,row_3_oldx,row_3_oldy,fontMinutes,magic,false,false);
+        setup_text_layer(row_3,anim_3,row_3_x,row_3_y,row_3_oldx,row_3_oldy,fontMinutes,magic,false,false);
         if (magic == 1) {
-            text_layer_set_text(&row_3,row_3_oldbuf);
+            text_layer_set_text(row_3,row_3_oldbuf);
         } else {
-            text_layer_set_text(&row_3,row_3_buffer);
+            text_layer_set_text(row_3,row_3_buffer);
         }
-        text_layer_set_text(&row_3b,STR_SPACE);
+        text_layer_set_text(row_3b,STR_SPACE);
     }
 
     if (strcmp(row_4_oldbuf,row_4_buffer)) { haschanged = true; } else { haschanged = false; }
@@ -477,41 +464,41 @@ void update_time(PblTm* t){
         magic = 2; // reappear
     }
     if (haschanged && tenplusone) {
-        setup_text_layer(&row_4,&anim_4,row_4_x,row_4_y,row_3_oldx,row_3_oldy,fontMinutes,0,false,false);
-        text_layer_set_text(&row_4,row_4_buffer);
-        text_layer_set_text(&row_4b,STR_SPACE);
+        setup_text_layer(row_4,anim_4,row_4_x,row_4_y,row_3_oldx,row_3_oldy,fontMinutes,0,false,false);
+        text_layer_set_text(row_4,row_4_buffer);
+        text_layer_set_text(row_4b,STR_SPACE);
     } else if (magic == 0) {
         if (haschanged) {
-            setup_text_layer(&row_4,&anim_4,-144,row_4_oldy,row_4_oldx,row_4_oldy,fontMinutes,magic,false,false);
-            text_layer_set_text(&row_4,row_4_oldbuf);
-            setup_text_layer(&row_4b,&anim_4b,row_4_x,row_4_y,144,row_4_y,fontMinutes,magic,true,false);
-            text_layer_set_text(&row_4b,row_4_buffer);
+            setup_text_layer(row_4,anim_4,-144,row_4_oldy,row_4_oldx,row_4_oldy,fontMinutes,magic,false,false);
+            text_layer_set_text(row_4,row_4_oldbuf);
+            setup_text_layer(row_4b,anim_4b,row_4_x,row_4_y,144,row_4_y,fontMinutes,magic,true,false);
+            text_layer_set_text(row_4b,row_4_buffer);
         } else {
-            setup_text_layer(&row_4,&anim_4,row_4_x,row_4_y,row_4_oldx,row_4_oldy,fontMinutes,magic,false,false);
-            text_layer_set_text(&row_4,row_4_buffer);
-            text_layer_set_text(&row_4b,STR_SPACE);
+            setup_text_layer(row_4,anim_4,row_4_x,row_4_y,row_4_oldx,row_4_oldy,fontMinutes,magic,false,false);
+            text_layer_set_text(row_4,row_4_buffer);
+            text_layer_set_text(row_4b,STR_SPACE);
         }
     } else {
-        setup_text_layer(&row_4,&anim_4,row_4_x,row_4_y,row_4_oldx,row_4_oldy,fontMinutes,magic,false,false);
+        setup_text_layer(row_4,anim_4,row_4_x,row_4_y,row_4_oldx,row_4_oldy,fontMinutes,magic,false,false);
         if (magic == 1) {
-            text_layer_set_text(&row_4,row_4_oldbuf);
+            text_layer_set_text(row_4,row_4_oldbuf);
         } else {
-            text_layer_set_text(&row_4,row_4_buffer);
+            text_layer_set_text(row_4,row_4_buffer);
         }
-        text_layer_set_text(&row_4b,STR_SPACE);
+        text_layer_set_text(row_4b,STR_SPACE);
     }
 
     if (strcmp(row_5_oldbuf,row_5_buffer)) { haschanged = true; } else { haschanged = false; }
 
     if (haschanged && firstblood != true) {
-        setup_text_layer(&row_5,&anim_5,-144,row_5_oldy,row_5_oldx,row_5_oldy,fontDate,0,false,false);
-        text_layer_set_text(&row_5,row_5_oldbuf);
-        setup_text_layer(&row_5b,&anim_5b,row_5_x,row_5_y,144,row_5_y,fontDate,magic,true,false);
-        text_layer_set_text(&row_5b,row_5_buffer);
+        setup_text_layer(row_5,anim_5,-144,row_5_oldy,row_5_oldx,row_5_oldy,fontDate,0,false,false);
+        text_layer_set_text(row_5,row_5_oldbuf);
+        setup_text_layer(row_5b,anim_5b,row_5_x,row_5_y,144,row_5_y,fontDate,magic,true,false);
+        text_layer_set_text(row_5b,row_5_buffer);
     } else {
-        setup_text_layer(&row_5,&anim_5,row_5_x,row_5_y,row_5_oldx,row_5_oldy,fontDate,0,true,false);
-        text_layer_set_text(&row_5,row_5_buffer);
-        text_layer_set_text(&row_5b,STR_SPACE);
+        setup_text_layer(row_5,anim_5,row_5_x,row_5_y,row_5_oldx,row_5_oldy,fontDate,0,true,false);
+        text_layer_set_text(row_5,row_5_buffer);
+        text_layer_set_text(row_5b,STR_SPACE);
     }
 
     if (firstblood) {
@@ -520,66 +507,111 @@ void update_time(PblTm* t){
 }
 
 
-static void handle_minute_tick(AppContextRef app_ctx, PebbleTickEvent* e) {
+static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 
 #if DEBUG
     static int compte = 1;
     compte++;
-    if (compte == 2) { update_time(e->tick_time); compte = 0; }
+    if (compte == 2) { update_time(tick_time); compte = 0; }
 #else
-    update_time(e->tick_time);
+    update_time(tick_time);
 #endif
 
 }
 
-void handle_init(AppContextRef ctx) {
-    (void)ctx;
+void battery_handler(BatteryChargeState charge) {
+	if(charge.is_charging) {
+		text_layer_set_text(battery,"\ue004");
+		return;
+	}
+	
+	if(charge.charge_percent >= 60) {
+		text_layer_set_text(battery,"\ue003");
+	}
+	else if (charge.charge_percent < 60 && charge.charge_percent > 30) {
+		text_layer_set_text(battery,"\ue002");
+	} else {
+		text_layer_set_text(battery,"\ue001");
+	}
+	
+}
+void handle_init() {
 
     firstblood = true;
 
-    window_init(&window, "Film_Plakat");
-    window_stack_push(&window, true /* Animated */);
-    window_set_background_color(&window, GColorBlack);
-    resource_init_current_app(&APP_RESOURCES);
+	window = window_create();
+    window_stack_push(window, true /* Animated */);
+    window_set_background_color(window, GColorBlack);
 
     fontHour = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_BI_35));
     fontUhr = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_LI_30));
     fontMinutes = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_I_33));
     fontDate = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ROBOTO_I_13));
+    fontIcons = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_ICONS_16));
 
     memset(row_1_buffer,0,20);
     memset(row_2_buffer,0,20);
     memset(row_3_buffer,0,20);
     memset(row_4_buffer,0,20);
     memset(row_5_buffer,0,20);
+    
+	GRect frame =  layer_get_frame(window_get_root_layer(window));
+	
+    row_2 = text_layer_create(frame);
+    row_3 = text_layer_create(frame);
+    row_4 = text_layer_create(frame);
+    row_5 = text_layer_create(frame);
+    row_2b = text_layer_create(frame);
+    row_3b = text_layer_create(frame);
+    row_4b = text_layer_create(frame);
+    row_5b = text_layer_create(frame);
+    
+    row_1 = text_layer_create(frame);
+    row_1b = text_layer_create(frame);
+    
+	//battery
+	battery = text_layer_create(GRect(0, 0, 144, 18));
+	text_layer_set_text_color(battery, GColorWhite);
+	text_layer_set_background_color(battery, GColorClear);
+	text_layer_set_font(battery, fontIcons);
+	text_layer_set_text_alignment(battery, GTextAlignmentRight);
+	battery_handler(battery_state_service_peek());
+	
+	layer_add_child(window_get_root_layer(window),text_layer_get_layer(battery));
+	
+	battery_state_service_subscribe(battery_handler);
 
-    text_layer_init(&row_2, window.layer.frame);
-    text_layer_init(&row_3, window.layer.frame);
-    text_layer_init(&row_4, window.layer.frame);
-    text_layer_init(&row_5, window.layer.frame);
-    text_layer_init(&row_2b, window.layer.frame);
-    text_layer_init(&row_3b, window.layer.frame);
-    text_layer_init(&row_4b, window.layer.frame);
-    text_layer_init(&row_5b, window.layer.frame);
-
-    text_layer_init(&row_1, window.layer.frame);
-    text_layer_init(&row_1b, window.layer.frame);
-
-    get_time(&t);
+#if DEBUG
+	tick_timer_service_subscribe(SECOND_UNIT, handle_minute_tick);
+#else
+    tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+#endif
 }
 
+void handle_deinit() {
+	text_layer_destroy(row_2);
+	text_layer_destroy(row_3);
+	text_layer_destroy(row_4);
+	text_layer_destroy(row_5);
+	text_layer_destroy(row_2b);
+	text_layer_destroy(row_3b);
+	text_layer_destroy(row_4b);
+	text_layer_destroy(row_5b);
+	text_layer_destroy(row_1);
+	text_layer_destroy(row_1b);
+	text_layer_destroy(battery);
+	
+	fonts_unload_custom_font(fontHour);
+	fonts_unload_custom_font(fontUhr);
+	fonts_unload_custom_font(fontMinutes);
+	fonts_unload_custom_font(fontDate);
+	fonts_unload_custom_font(fontIcons);
+	
+	window_destroy(window);
 
-void pbl_main(void *params) {
-    PebbleAppHandlers handlers = {
-        .init_handler = &handle_init,
-        .tick_info = {
-            .tick_handler = &handle_minute_tick,
-#if DEBUG
-            .tick_units = SECOND_UNIT
-#else
-            .tick_units = MINUTE_UNIT
-#endif
-        }
-    };
-    app_event_loop(params, &handlers);
+}
+int main(void) {
+  handle_init();
+  app_event_loop();
+  handle_deinit();
 }
